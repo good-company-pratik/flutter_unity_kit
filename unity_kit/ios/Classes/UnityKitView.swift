@@ -54,7 +54,11 @@ final class UnityKitView: UIView {
             DispatchQueue.main.async { [weak self] in self?.detachUnityView() }
             return
         }
-        unityView?.removeFromSuperview()
+        // Only remove if the Unity view is still our subview.
+        // A new container may have already claimed it.
+        if let uv = unityView, uv.superview === self {
+            uv.removeFromSuperview()
+        }
         unityView = nil
         layoutIfNeeded()
     }

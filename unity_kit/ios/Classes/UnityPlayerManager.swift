@@ -140,6 +140,31 @@ final class UnityPlayerManager: NSObject {
         return framework?.appController()?.rootView
     }
 
+    /// Restart Unity's rendering pipeline by calling `showUnityWindow()`, then
+    /// restore the window level so Flutter's window stays on top.
+    ///
+    /// `showUnityWindow` is Unity's official API for ensuring the Unity player
+    /// rendering surface is active after its view has been detached/reattached.
+    /// After `unloadApplication()`, this also triggers a full reload of the
+    /// Unity runtime, so we mark the player as loaded again.
+    func restartRendering() {
+        stateLock.lock()
+        guard let framework = _unityFramework, _isInitialized else {
+            stateLock.unlock()
+            return
+        }
+        _isLoaded = true
+        _isPaused = false
+        stateLock.unlock()
+
+        framework.showUnityWindow()
+
+        // Keep Flutter's window above Unity's.
+        if let window = framework.appController()?.window {
+            window.windowLevel = UIWindow.Level(UIWindow.Level.normal.rawValue - 1)
+        }
+    }
+
     /// Send Application.targetFrameRate to Unity via UnitySendMessage.
     func setTargetFrameRate(_ frameRate: Int) {
         sendMessage(gameObject: "FlutterBridge", methodName: "SetTargetFrameRate", message: "\(frameRate)")
