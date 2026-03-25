@@ -296,6 +296,11 @@ public final class UnityKitViewController: NSObject, FlutterPlatformView, UnityE
 
         if let unityView = UnityPlayerManager.shared.getView() {
             containerView.attachUnityView(unityView)
+
+            // Restart Unity's rendering pipeline so that AR subsystems (e.g. Vuforia)
+            // that were stopped before navigation reinitialize.
+            UnityPlayerManager.shared.restartRendering()
+
             markChannelReady()
             sendEvent(name: "onUnityCreated", data: nil)
             NSLog("[UnityKit] Unity view attached: viewId=\(viewId)")
