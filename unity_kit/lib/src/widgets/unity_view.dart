@@ -120,7 +120,16 @@ class _UnityViewState extends State<UnityView> {
     }
   }
 
+  // #region agent log
+  void _dbgLog(String msg, Map<String, dynamic> data, String hyp) {
+    debugPrint('[DBG-1941b8][$hyp][unity_view] $msg | $data');
+  }
+  // #endregion
+
   void _subscribeToStreams() {
+    // #region agent log
+    _dbgLog('_subscribeToStreams called', {'bridgeState': _bridge.currentState.name, 'ownsBridge': _ownsBridge, 'bridgeIsReady': _bridge.isReady}, 'A_B');
+    // #endregion
     _subscriptions.add(
       _bridge.messageStream.listen((message) {
         widget.onMessage?.call(message);
@@ -142,6 +151,9 @@ class _UnityViewState extends State<UnityView> {
     _subscriptions.add(
       _bridge.lifecycleStream.listen((state) {
         if (state == UnityLifecycleState.ready && !_unityReady) {
+          // #region agent log
+          _dbgLog('[post-fix] lifecycleStream fired ready', {'state': state.name, 'unityReady': _unityReady}, 'B_FIX');
+          // #endregion
           setState(() => _unityReady = true);
           widget.onReady?.call(_bridge);
           UnityKitLogger.instance.info('UnityView: bridge is ready');

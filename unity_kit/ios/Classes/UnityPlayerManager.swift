@@ -147,6 +147,13 @@ final class UnityPlayerManager: NSObject {
     /// rendering surface is active after its view has been detached/reattached.
     /// After `unloadApplication()`, this also triggers a full reload of the
     /// Unity runtime, so we mark the player as loaded again.
+    ///
+    /// IMPORTANT: `showUnityWindow()` does NOT unpause Unity. If the player
+    /// was previously paused (e.g. the user navigated away from the AR screen),
+    /// the caller must invoke `resume()` separately to actually unpause the
+    /// framework. We deliberately do not touch `_isPaused` here — clobbering
+    /// it to `false` would make the subsequent `resume()` call a no-op, leaving
+    /// the scene frozen on re-attach.
     func restartRendering() {
         stateLock.lock()
         guard let framework = _unityFramework, _isInitialized else {
@@ -154,7 +161,6 @@ final class UnityPlayerManager: NSObject {
             return
         }
         _isLoaded = true
-        _isPaused = false
         stateLock.unlock()
 
         framework.showUnityWindow()

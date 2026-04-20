@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import '../exceptions/exceptions.dart';
 import '../models/models.dart';
 import '../platform/unity_kit_platform.dart';
@@ -136,6 +138,12 @@ class UnityBridgeImpl implements UnityBridge {
 
   /// The internal [MessageHandler] for registering type-specific callbacks.
   MessageHandler get messageHandler => _messageHandler;
+
+  // #region agent log
+  void _dbgLog(String msg, Map<String, dynamic> data, String hyp) {
+    debugPrint('[DBG-1941b8][$hyp][unity_bridge] $msg | $data');
+  }
+  // #endregion
 
   @override
   Future<void> initialize() async {
@@ -302,7 +310,35 @@ class UnityBridgeImpl implements UnityBridge {
 
   /// Called when Unity player has been created and is ready.
   void _onUnityCreated() {
-    if (_guard.isReady) return; // Already processed, skip duplicate
+    // #region agent log
+    _dbgLog('_onUnityCreated called', {'guardIsReady': _guard.isReady, 'lifecycleState': _lifecycle.currentState.name}, 'B_C');
+    // #endregion
+
+    if (_guard.isReady) {
+      final state = _lifecycle.currentState;
+      // Re-entry: a new platform view was created after a previous pause
+      // (lifecycle is paused or resumed). Native is signalling readiness again,
+      // which is legitimate — reset so we can process it as a fresh ready event.
+      if (state == UnityLifecycleState.paused ||
+          state == UnityLifecycleState.resumed) {
+        // #region agent log
+        _dbgLog('[post-fix] re-entry onUnityCreated detected, resetting guard+lifecycle', {'state': state.name}, 'B_FIX');
+        // #endregion
+        _guard.reset();
+        _lifecycle.reset(); // → uninitialized
+        _lifecycle.transition(UnityLifecycleState.initializing); // → initializing
+        // The native player was paused on the previous close. Resume it now
+        // so it can process the messages that _onUnityReady will send next.
+        // Called before transition(ready) so unity#resumePlayer is queued on
+        // the method channel ahead of any postMessage calls.
+        unawaited(_platform.resume());
+        // #region agent log
+        _dbgLog('[post-fix] _platform.resume() called to unpause native player', {'state': state.name}, 'B_FIX');
+        // #endregion
+      } else {
+        return; // True duplicate during initial startup — skip
+      }
+    }
 
     _lifecycle.transition(UnityLifecycleState.ready);
     _flushQueuedMessages();
